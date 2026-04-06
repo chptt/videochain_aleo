@@ -17,8 +17,9 @@ export const env = {
   NODE_ENV:               optional("NODE_ENV", "development"),
   APP_URL:                optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
 
-  // SQLite — no setup needed, just a local file
+  // SQLite locally, Turso on Vercel
   DATABASE_URL:           optional("DATABASE_URL", "file:./prisma/videochain.db"),
+  TURSO_AUTH_TOKEN:       optional("TURSO_AUTH_TOKEN", ""),
 
   JWT_SECRET:             optional("JWT_SECRET", "dev-secret-change-in-production-please"),
   SESSION_EXPIRY_SECONDS: parseInt(optional("SESSION_EXPIRY_SECONDS", "300")),
