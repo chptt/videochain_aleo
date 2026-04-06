@@ -54,27 +54,47 @@ export async function connectAleoWallet(): Promise<AleoWalletState> {
   console.log("[Aleo] Wallet found:", leo);
   console.log("[Aleo] Wallet methods:", Object.keys(leo));
 
-  // Try different connect methods
+  // Try different connect methods — wrap each in try/catch
   if (typeof leo.connect === "function") {
-    await leo.connect("testnet");
+    try {
+      await leo.connect("testnet");
+    } catch (e) {
+      console.warn("[Aleo] connect('testnet') failed:", e);
+      // Try without argument
+      try { await leo.connect(); } catch (e2) {
+        console.warn("[Aleo] connect() failed:", e2);
+      }
+    }
   } else if (typeof leo.requestAccounts === "function") {
-    await leo.requestAccounts();
+    try { await leo.requestAccounts(); } catch (e) { console.warn("[Aleo] requestAccounts failed:", e); }
   } else if (typeof leo.enable === "function") {
-    await leo.enable();
+    try { await leo.enable(); } catch (e) { console.warn("[Aleo] enable failed:", e); }
   }
 
   // Try different ways to get the address
   let address: string | null = null;
 
   if (typeof leo.getAccount === "function") {
-    const account = await leo.getAccount();
-    address = account?.address ?? account ?? null;
-  } else if (typeof leo.getAccounts === "function") {
-    const accounts = await leo.getAccounts();
-    address = accounts?.[0] ?? null;
-  } else if (leo.publicKey) {
-    address = leo.publicKey;
+    try {
+      const account = await leo.getAccount();
+      console.log("[Aleo] getAccount result:", account);
+      address = account?.address ?? (typeof account === "string" ? account : null);
+    } catch (e) { console.warn("[Aleo] getAccount failed:", e); }
   }
+
+  if (!address && typeof leo.getAccounts === "function") {
+    try {
+      const accounts = await leo.getAccounts();
+      console.log("[Aleo] getAccounts result:", accounts);
+      address = accounts?.[0]?.address ?? accounts?.[0] ?? null;
+    } catch (e) { console.warn("[Aleo] getAccounts failed:", e); }
+  }
+
+  if (!address && leo.publicKey) {
+    address = typeof leo.publicKey === "string" ? leo.publicKey : null;
+  }
+
+  console.log("[Aleo] Final address:", address);
 
   if (!address) {
     throw new Error("Could not get address from Leo Wallet");
