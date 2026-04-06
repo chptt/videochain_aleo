@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./videochain.db"
+}
+
+// ─── Video ────────────────────────────────────────────────────────────────────
+// Minimal server-side record. All public metadata lives on IPFS.
+// The only sensitive fields are encryptedKeyRef (wrapped AES key)
+// and encryptedVideoUri (storage URI of the encrypted blob).
+
+model Video {
+  id                String   @id @default(cuid())
+  contentId         String   @unique @default(cuid())
+  creatorAddress    String   // Aleo address of the creator
+  encryptedVideoUri String   // IPFS/Walrus URI of the encrypted blob
+  metadataUri       String   // IPFS/Walrus URI of the public metadata JSON
+  contentHash       String   // SHA-256 of original plaintext (integrity check)
+  encryptedKeyRef   String   // wrapped AES content key — never exposed
+  status            String   @default("PUBLISHED") // PUBLISHED | UNPUBLISHED
+  createdAt         DateTime @default(now())
+
+  playbackSessions PlaybackSession[]
+
+  @@index([creatorAddress])
+  @@index([contentId])
+}
+
+// ─── PlaybackSession ──────────────────────────────────────────────────────────
+// Short-lived session issued after Aleo entitlement is verified.
+// Single-use, nonce-bound, IP-hash-bound.
+
+model PlaybackSession {
+  id           String   @id @default(cuid())
+  sessionId    String   @unique @default(cuid())
+  aleoAddress  String   // viewer's Aleo address
+  videoId      String
+  nonce        String   @unique
+  wrappedKey   String   // short-lived wrapped session key
+  expiresAt    DateTime
+  status       String   @default("ACTIVE") // ACTIVE | CONSUMED | EXPIRED | REVOKED
+  issuedAt     DateTime @default(now())
+  consumedAt   DateTime?
+  ipHash       String?
+
+  video Video @relation(fields: [videoId], references: [id])
+
+  @@index([aleoAddress])
+  @@index([videoId])
+  @@index([sessionId])
+  @@index([expiresAt])
+}

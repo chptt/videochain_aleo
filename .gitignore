@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+
+# Env files
+.env
+.env.local
+.env.*.local
+
+# Prisma
+prisma/migrations/
+
+# Storage
+storage/uploads/
+*.enc
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Aleo build artifacts
+aleo-programs/build/
+aleo-programs/**/*.avm

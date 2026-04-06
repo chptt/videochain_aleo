@@ -1,0 +1,6 @@
+{
+  "program": "video_entitlement.aleo",
+  "version": "0.0.1",
+  "description": "Privacy-preserving video entitlement program for VideoChain",
+  "license": "MIT"
+}
