@@ -60,9 +60,14 @@ export async function connectAleoWallet(): Promise<AleoWalletState> {
       await leo.connect("testnet");
     } catch (e) {
       console.warn("[Aleo] connect('testnet') failed:", e);
-      // Try without argument
-      try { await leo.connect(); } catch (e2) {
-        console.warn("[Aleo] connect() failed:", e2);
+      try { await leo.connect("testnetbeta"); } catch (e2) {
+        console.warn("[Aleo] connect('testnetbeta') failed:", e2);
+        try { await leo.connect("testnet3"); } catch (e3) {
+          console.warn("[Aleo] connect('testnet3') failed:", e3);
+          try { await leo.connect(); } catch (e4) {
+            console.warn("[Aleo] connect() failed:", e4);
+          }
+        }
       }
     }
   } else if (typeof leo.requestAccounts === "function") {
@@ -94,10 +99,15 @@ export async function connectAleoWallet(): Promise<AleoWalletState> {
     address = typeof leo.publicKey === "string" ? leo.publicKey : null;
   }
 
+  // Last resort — check if wallet has an account property
+  if (!address && leo.account) {
+    address = leo.account?.address ?? (typeof leo.account === "string" ? leo.account : null);
+  }
+
   console.log("[Aleo] Final address:", address);
 
   if (!address) {
-    throw new Error("Could not get address from Leo Wallet");
+    throw new Error("Could not get address. Make sure Leo Wallet is set to Testnet network and try again.");
   }
 
   return { connected: true, address, network: "testnet" };
