@@ -3,7 +3,7 @@
 import { useAleoWallet } from "@/app/hooks/useAleoWallet";
 
 export function AleoConnect() {
-  const { connected, address, connecting, error, installed, connect, disconnect } =
+  const { connected, address, connecting, checking, error, connect, disconnect } =
     useAleoWallet();
 
   if (connected && address) {
@@ -12,10 +12,7 @@ export function AleoConnect() {
         <span className="badge-green text-xs">
           {address.slice(0, 8)}…{address.slice(-4)}
         </span>
-        <button
-          onClick={disconnect}
-          className="btn-secondary text-xs px-3 py-1"
-        >
+        <button onClick={disconnect} className="btn-secondary text-xs px-3 py-1">
           Disconnect
         </button>
       </div>
@@ -26,15 +23,12 @@ export function AleoConnect() {
     <div className="flex flex-col items-end gap-1">
       <button
         onClick={connect}
-        disabled={connecting}
+        disabled={connecting || checking}
         className="btn-primary text-sm"
       >
-        {connecting
-          ? "Connecting…"
-          : !installed
-          ? "Install Leo Wallet"
-          : "Connect Aleo Wallet"}
+        {checking ? "Loading…" : connecting ? "Connecting…" : "Connect Aleo Wallet"}
       </button>
+      {error && <p className="text-xs text-red-400 max-w-48 text-right">{error}</p>}
     </div>
   );
 }
