@@ -51,8 +51,7 @@ export function Navbar() {
           >
             Sign out
           </button>
-        </div>
-      </div>
+        </div>      </div>
     </nav>
   );
 }

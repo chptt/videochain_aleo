@@ -23,6 +23,7 @@ export const env = {
 
   JWT_SECRET:             optional("JWT_SECRET", "dev-secret-change-in-production-please"),
   SESSION_EXPIRY_SECONDS: parseInt(optional("SESSION_EXPIRY_SECONDS", "300")),
+  REFRESH_TOKEN_SECRET:   optional("REFRESH_TOKEN_SECRET", "dev-refresh-secret"),
 
   MASTER_ENCRYPTION_KEY:  require("MASTER_ENCRYPTION_KEY"),
   KEY_WRAP_SECRET:        require("KEY_WRAP_SECRET"),
