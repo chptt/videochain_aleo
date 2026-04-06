@@ -1,8 +1,9 @@
-
 import { NextResponse } from "next/server";
-import { db } from "@/services/db";
 import { getSession } from "@/app/lib/auth";
 
+// Entitlement state is managed by Aleo wallet records, not the DB.
+// This endpoint returns an empty list — the client checks entitlement
+// via the Aleo wallet directly when requesting playback.
 export async function GET() {
   try {
     const session = await getSession();
@@ -10,34 +11,9 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const entitlements = await db.entitlementCache.findMany({
-      where: { userId: session.userId },
-      include: {
-        video: {
-          select: {
-            contentId: true,
-            title: true,
-            thumbnailUri: true,
-            accessType: true,
-            durationSeconds: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    const items = entitlements.map((e) => ({
-      contentId: e.video.contentId,
-      title: e.video.title,
-      thumbnailUri: e.video.thumbnailUri,
-      accessType: e.accessType,
-      status: e.status,
-      expiresAt: e.expiresAt?.toISOString(),
-      viewsRemaining: e.viewsRemaining,
-      lastVerifiedAt: e.lastVerifiedAt.toISOString(),
-    }));
-
-    return NextResponse.json({ success: true, data: items });
+    // TODO: Once Aleo program is live, query the user's AccessRecords
+    // using their view key to list owned content.
+    return NextResponse.json({ success: true, data: [] });
   } catch {
     return NextResponse.json({ success: false, error: "Failed to fetch entitlements" }, { status: 500 });
   }
