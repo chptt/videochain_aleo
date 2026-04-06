@@ -57,16 +57,14 @@ export async function connectAleoWallet(): Promise<AleoWalletState> {
   // Try different connect methods — wrap each in try/catch
   if (typeof leo.connect === "function") {
     try {
-      await leo.connect("testnet");
+      // Leo Wallet shows "Aleo Testnet Beta" = testnetbeta
+      await leo.connect("testnetbeta");
     } catch (e) {
-      console.warn("[Aleo] connect('testnet') failed:", e);
+      console.warn("[Aleo] connect('testnetbeta') failed:", e);
       try { await leo.connect("testnetbeta"); } catch (e2) {
-        console.warn("[Aleo] connect('testnetbeta') failed:", e2);
-        try { await leo.connect("testnet3"); } catch (e3) {
-          console.warn("[Aleo] connect('testnet3') failed:", e3);
-          try { await leo.connect(); } catch (e4) {
-            console.warn("[Aleo] connect() failed:", e4);
-          }
+        console.warn("[Aleo] connect('testnet') failed:", e2);
+        try { await leo.connect(); } catch (e3) {
+          console.warn("[Aleo] connect() failed:", e3);
         }
       }
     }
@@ -110,7 +108,7 @@ export async function connectAleoWallet(): Promise<AleoWalletState> {
     throw new Error("Could not get address. Make sure Leo Wallet is set to Testnet network and try again.");
   }
 
-  return { connected: true, address, network: "testnet" };
+  return { connected: true, address, network: "testnetbeta" };
 }
 
 export async function getAleoWalletState(): Promise<AleoWalletState> {
@@ -127,7 +125,7 @@ export async function getAleoWalletState(): Promise<AleoWalletState> {
     } else if (leo.publicKey) {
       address = leo.publicKey;
     }
-    if (address) return { connected: true, address, network: "testnet" };
+    if (address) return { connected: true, address, network: "testnetbeta" };
   } catch { /* not connected */ }
   return { connected: false, address: null, network: null };
 }
@@ -154,7 +152,7 @@ export async function executeGrantAccess(inputs: string[]): Promise<{ txId: stri
   const account = await leo.getAccount?.() ?? { address: "" };
   const txId = await leo.requestTransaction({
     address: account?.address ?? "",
-    chainId: "testnet",
+    chainId: "testnetbeta",
     transitions: [{ program: PROGRAM_ID, functionName: "grant_access", inputs }],
     fee: 1000,
     feePrivate: false,
@@ -170,7 +168,7 @@ export async function executeValidateAccess(params: {
   const account = await leo.getAccount?.() ?? { address: "" };
   const txId = await leo.requestTransaction({
     address: account?.address ?? "",
-    chainId: "testnet",
+    chainId: "testnetbeta",
     transitions: [{ program: PROGRAM_ID, functionName: "validate_access",
       inputs: [params.record, params.contentId, `${params.currentTs}u64`] }],
     fee: 1000,
@@ -187,7 +185,7 @@ export async function executeConsumeView(params: {
   const account = await leo.getAccount?.() ?? { address: "" };
   const txId = await leo.requestTransaction({
     address: account?.address ?? "",
-    chainId: "testnet",
+    chainId: "testnetbeta",
     transitions: [{ program: PROGRAM_ID, functionName: "consume_view",
       inputs: [params.record, params.contentId, `${params.currentTs}u64`, params.newNonce] }],
     fee: 1000,

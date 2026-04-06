@@ -30,7 +30,7 @@ export const env = {
   WALRUS_AGGREGATOR_URL:  get("WALRUS_AGGREGATOR_URL", "https://aggregator.walrus-testnet.walrus.space"),
   LOCAL_STORAGE_PATH:     get("LOCAL_STORAGE_PATH", "./storage/uploads"),
 
-  ALEO_NETWORK:           get("NEXT_PUBLIC_ALEO_NETWORK", "testnet"),
+  ALEO_NETWORK:           get("NEXT_PUBLIC_ALEO_NETWORK", "testnetbeta"),
   ALEO_PROGRAM_ID:        get("ALEO_PROGRAM_ID", "video_entitlement.aleo"),
   ALEO_PRIVATE_KEY:       get("ALEO_PRIVATE_KEY", ""),
   ALEO_VIEW_KEY:          get("ALEO_VIEW_KEY", ""),
