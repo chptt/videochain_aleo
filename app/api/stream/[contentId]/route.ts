@@ -43,12 +43,7 @@ export async function GET(
     const contentKey = unwrapKey(video.encryptedKeyRef, env.KEY_WRAP_SECRET);
 
     // Fetch encrypted blob from storage
-    const blobUrl = storage.getUrl(video.encryptedVideoUri);
-    const blobRes = await fetch(blobUrl);
-    if (!blobRes.ok) {
-      return NextResponse.json({ error: "Storage error" }, { status: 502 });
-    }
-    const encryptedBuffer = Buffer.from(await blobRes.arrayBuffer());
+    const encryptedBuffer = await storage.read(video.encryptedVideoUri);
     const encryptedPayload = JSON.parse(encryptedBuffer.toString());
 
     // Decrypt in memory — never write plaintext to disk
@@ -60,7 +55,7 @@ export async function GET(
     logger.info("STREAM_SERVED", { contentId, sessionId: sessionData.sessionId });
 
     // Stream the decrypted video
-    return new NextResponse(plaintext, {
+    return new NextResponse(new Uint8Array(plaintext), {
       headers: {
         "Content-Type": "video/mp4",
         "Content-Length": String(plaintext.length),

@@ -36,7 +36,7 @@ export async function issuePlaybackSession(params: {
       nonce,
       wrappedKey,
       expiresAt,
-      ipBinding: ipHash,
+      ipHash,
       status:    "ACTIVE",
     },
   });

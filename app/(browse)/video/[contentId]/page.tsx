@@ -35,24 +35,15 @@ export default async function VideoDetailPage({
       <div className="mb-6">
         <h1 className="mb-2 text-3xl font-bold text-white">{v.title}</h1>
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
-          <span>by {(v as unknown as { creator?: { displayName?: string } }).creator?.displayName ?? "Creator"}</span>
-          {(v as unknown as { category?: string }).category && (
-            <span className="badge-blue">{(v as unknown as { category?: string }).category}</span>
-          )}
-          <span className="badge-blue">{ACCESS_LABELS[(v as unknown as { accessType?: string }).accessType ?? "PAY_PER_VIEW"]}</span>
-          <span className="font-semibold text-brand-400">${((v as unknown as { price?: number }).price ?? 0).toFixed(2)}</span>
+          <span>by {v.creator?.displayName ?? "Creator"}</span>
+          {v.category && <span className="badge-blue">{v.category}</span>}
+          <span className="badge-blue">{ACCESS_LABELS[v.accessType]}</span>
+          <span className="font-semibold text-brand-400">${v.price.toFixed(2)}</span>
         </div>
       </div>
 
-      {(v as unknown as { description?: string }).description && (
-        <p className="mb-8 text-gray-400">{(v as unknown as { description?: string }).description}</p>
-      )}
+      {v.description && <p className="mb-8 text-gray-400">{v.description}</p>}
 
-      {/* 
-        Entitlement is verified client-side via Aleo wallet.
-        PlaybackGate handles the connect → validate → stream flow.
-        PurchaseButton is shown alongside for users who haven't purchased yet.
-      */}
       <div className="flex flex-col gap-4">
         <div className="card flex flex-col gap-4">
           <div className="flex items-center gap-3">
@@ -66,12 +57,12 @@ export default async function VideoDetailPage({
           </div>
           <PurchaseButton
             contentId={v.contentId}
-            price={(v as unknown as { price?: number }).price ?? 0}
-            accessType={(v as unknown as { accessType?: string }).accessType as import("@/types").AccessType ?? "PAY_PER_VIEW"}
+            price={v.price}
+            accessType={v.accessType}
           />
         </div>
 
-        <PlaybackGate video={v as unknown as import("@/types").Video & { accessType: string; price: number }} />
+        <PlaybackGate video={v} />
       </div>
     </div>
   );

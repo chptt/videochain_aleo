@@ -2,57 +2,103 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/services/db";
 import { getSession } from "@/app/lib/auth";
+import { storage } from "@/services/storage";
+import type { Video, VideoMetadata } from "@/types";
+
+function getCreatorDisplayName(aleoAddress: string): string {
+  if (aleoAddress.length <= 12) return aleoAddress;
+  return `${aleoAddress.slice(0, 6)}...${aleoAddress.slice(-4)}`;
+}
+
+async function hydrateVideo(videoRecord: {
+  id: string;
+  contentId: string;
+  creatorAddress: string;
+  metadataUri: string;
+  status: string;
+  createdAt: Date;
+}): Promise<Video> {
+  let metadata: VideoMetadata | undefined;
+
+  try {
+    metadata = await storage.readJson<VideoMetadata>(videoRecord.metadataUri);
+  } catch {
+    metadata = undefined;
+  }
+
+  return {
+    id: videoRecord.id,
+    contentId: videoRecord.contentId,
+    creatorAddress: videoRecord.creatorAddress,
+    metadataUri: videoRecord.metadataUri,
+    title: metadata?.title ?? "Untitled",
+    description: metadata?.description,
+    category: metadata?.category,
+    thumbnailUri: metadata?.thumbnailUri ? storage.getUrl(metadata.thumbnailUri) : undefined,
+    price: metadata?.price ?? 0,
+    accessType: metadata?.accessType ?? "PAY_PER_VIEW",
+    durationSeconds: metadata?.durationSeconds,
+    maxViews: metadata?.maxViews,
+    rentalHours: metadata?.rentalHours,
+    status: videoRecord.status as Video["status"],
+    createdAt: videoRecord.createdAt.toISOString(),
+    creator: { displayName: getCreatorDisplayName(videoRecord.creatorAddress) },
+    metadata,
+  };
+}
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = req.nextUrl;
-    const page     = parseInt(searchParams.get("page") ?? "1");
-    const pageSize = parseInt(searchParams.get("pageSize") ?? "20");
+    const page     = Math.max(parseInt(searchParams.get("page") ?? "1") || 1, 1);
+    const pageSize = Math.max(parseInt(searchParams.get("pageSize") ?? "20") || 20, 1);
     const search   = searchParams.get("search") ?? undefined;
     const category = searchParams.get("category") ?? undefined;
     const mine     = searchParams.get("mine") === "true";
 
     const session = await getSession();
 
-    const where: Record<string, unknown> = { status: "PUBLISHED" };
+    const where: { status?: string; creatorAddress?: string } = { status: "PUBLISHED" };
 
     if (mine && session) {
-      // Creator fetching their own videos
-      const creator = await db.creatorProfile.findUnique({ where: { userId: session.userId } });
-      if (creator) {
-        delete where.status; // show all statuses for own videos
-        where.creatorId = creator.id;
+      delete where.status;
+      where.creatorAddress = session.aleoAddress;
+    }
+
+    const records = await db.video.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        contentId: true,
+        creatorAddress: true,
+        metadataUri: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    const hydrated = await Promise.all(records.map((record) => hydrateVideo(record)));
+    const normalizedSearch = search?.trim().toLowerCase();
+    const normalizedCategory = category && category !== "All" ? category.toLowerCase() : undefined;
+
+    const filtered = hydrated.filter((video) => {
+      if (normalizedSearch) {
+        const haystack = `${video.title} ${video.description ?? ""}`.toLowerCase();
+        if (!haystack.includes(normalizedSearch)) {
+          return false;
+        }
       }
-    }
 
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } },
-      ];
-    }
-    if (category && category !== "All") {
-      where.category = { equals: category, mode: "insensitive" };
-    }
+      if (normalizedCategory) {
+        return video.category?.toLowerCase() === normalizedCategory;
+      }
 
-    const [items, total] = await Promise.all([
-      db.video.findMany({
-        where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy: { createdAt: "desc" },
-        include: { creator: { select: { displayName: true, avatarUri: true } } },
-        // Never return encryptedKeyRef or encryptedVideoUri in listings
-        select: {
-          id: true, contentId: true, creatorId: true, title: true,
-          description: true, category: true, thumbnailUri: true,
-          price: true, accessType: true, durationSeconds: true,
-          maxViews: true, rentalHours: true, status: true, createdAt: true, updatedAt: true,
-          creator: { select: { displayName: true, avatarUri: true } },
-        },
-      }),
-      db.video.count({ where }),
-    ]);
+      return true;
+    });
+
+    const total = filtered.length;
+    const items = filtered.slice((page - 1) * pageSize, page * pageSize);
 
     return NextResponse.json({ success: true, data: { items, total, page, pageSize } });
   } catch {

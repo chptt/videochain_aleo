@@ -20,6 +20,7 @@ export interface StorageUploadResult {
 interface StorageProvider {
   upload(data: Buffer, filename: string, mimeType: string): Promise<StorageUploadResult>;
   getUrl(uri: string): string;
+  read(uri: string): Promise<Buffer>;
 }
 
 // ─── Pinata (IPFS) ────────────────────────────────────────────────────────────
@@ -50,6 +51,14 @@ class PinataProvider implements StorageProvider {
     const cid = uri.replace("ipfs://", "");
     return `${env.PINATA_GATEWAY}/ipfs/${cid}`;
   }
+
+  async read(uri: string): Promise<Buffer> {
+    const res = await fetch(this.getUrl(uri));
+    if (!res.ok) {
+      throw new Error(`Failed to read Pinata object: ${res.status}`);
+    }
+    return Buffer.from(await res.arrayBuffer());
+  }
 }
 
 // ─── Walrus ───────────────────────────────────────────────────────────────────
@@ -68,6 +77,14 @@ class WalrusProvider implements StorageProvider {
     const blobId = uri.replace("walrus://", "");
     return `${env.WALRUS_AGGREGATOR_URL}/v1/${blobId}`;
   }
+
+  async read(uri: string): Promise<Buffer> {
+    const res = await fetch(this.getUrl(uri));
+    if (!res.ok) {
+      throw new Error(`Failed to read Walrus object: ${res.status}`);
+    }
+    return Buffer.from(await res.arrayBuffer());
+  }
 }
 
 // ─── Local (dev only) ─────────────────────────────────────────────────────────
@@ -84,6 +101,11 @@ class LocalProvider implements StorageProvider {
   getUrl(uri: string): string {
     const filename = uri.replace("local://", "");
     return `/api/stream/local/${filename}`;
+  }
+
+  async read(uri: string): Promise<Buffer> {
+    const filename = uri.replace("local://", "");
+    return fs.readFile(path.join(env.LOCAL_STORAGE_PATH, filename));
   }
 }
 
@@ -104,4 +126,9 @@ export const storage = {
   upload: (data: Buffer, filename: string, mimeType: string) =>
     provider.upload(data, filename, mimeType),
   getUrl: (uri: string) => provider.getUrl(uri),
+  read: (uri: string) => provider.read(uri),
+  readJson: async <T>(uri: string): Promise<T> => {
+    const buffer = await provider.read(uri);
+    return JSON.parse(buffer.toString("utf8")) as T;
+  },
 };

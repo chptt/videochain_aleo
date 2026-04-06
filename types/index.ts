@@ -31,25 +31,37 @@ export interface VideoMetadata {
   title: string;
   description?: string;
   category?: string;
-  thumbnailUri?: string;   // IPFS/Walrus URI of thumbnail
+  thumbnailUri?: string;
   price: number;
   accessType: AccessType;
   durationSeconds?: number;
-  maxViews?: number;       // for LIMITED_VIEWS
-  rentalHours?: number;    // for RENTAL
+  maxViews?: number;
+  rentalHours?: number;
   createdAt: string;
 }
 
-// ─── Video (server record) ────────────────────────────────────────────────────
+export interface CreatorProfile {
+  displayName?: string;
+  avatarUri?: string;
+}
 
 export interface Video {
   id: string;
   contentId: string;
   creatorAddress: string;
   metadataUri: string;
+  title: string;
+  description?: string;
+  category?: string;
+  thumbnailUri?: string;
+  price: number;
+  accessType: AccessType;
+  durationSeconds?: number;
+  maxViews?: number;
+  rentalHours?: number;
   status: VideoStatus;
   createdAt: string;
-  // Metadata fields resolved from IPFS (populated by API)
+  creator?: CreatorProfile;
   metadata?: VideoMetadata;
 }
 
@@ -84,10 +96,8 @@ export interface PlaybackSessionRequest {
   contentId: string;
   aleoAddress: string;
   aleoTxId?: string;
-  signature?: string;     // wallet signature proving address ownership
+  signature?: string;
 }
-
-// ─── Upload ───────────────────────────────────────────────────────────────────
 
 export interface VideoUploadPayload {
   title: string;
@@ -99,7 +109,23 @@ export interface VideoUploadPayload {
   rentalHours?: number;
 }
 
-// ─── API responses ────────────────────────────────────────────────────────────
+export interface PurchasePayload {
+  contentId: string;
+  accessType: AccessType;
+  paymentRef?: string;
+}
+
+export interface PurchaseResult {
+  aleoGrantInputs: string[];
+  entitlement: EntitlementRecord;
+}
+
+export interface CreatorStats {
+  totalVideos: number;
+  totalViews: number;
+  totalRevenue: number;
+  activeViewers: number;
+}
 
 export interface ApiResponse<T = unknown> {
   success: boolean;

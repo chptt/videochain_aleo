@@ -13,7 +13,7 @@ export async function GET() {
       db.video.count({ where: { creatorAddress: session.aleoAddress } }),
       db.playbackSession.count({
         where: {
-          video: { creatorAddress: session.aleoAddress },
+          video: { is: { creatorAddress: session.aleoAddress } },
           status: "ACTIVE",
           expiresAt: { gt: new Date() },
         },
@@ -24,8 +24,8 @@ export async function GET() {
       success: true,
       data: {
         totalVideos,
-        totalViews: 0,    // TODO: track views
-        totalRevenue: 0,  // TODO: track revenue
+        totalViews: 0,
+        totalRevenue: 0,
         activeViewers: activeSessions,
       },
     });
