@@ -1,30 +1,32 @@
-
 import Link from "next/link";
-import type { CreatorStats, Video } from "@/types";
-
-async function getStats(): Promise<CreatorStats | null> {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const res = await fetch(`${base}/api/creator/stats`, { cache: "no-store" });
-  if (!res.ok) return null;
-  const json = await res.json();
-  return json.data ?? null;
-}
-
-async function getMyVideos(): Promise<Video[]> {
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const res = await fetch(`${base}/api/videos?mine=true`, { cache: "no-store" });
-  const json = await res.json();
-  return json.data?.items ?? [];
-}
+import { db } from "@/services/db";
+import { getSession } from "@/app/lib/auth";
 
 export default async function CreatorDashboard() {
-  const [stats, videos] = await Promise.all([getStats(), getMyVideos()]);
+  const session = await getSession();
+
+  const [totalVideos, activeSessions] = session ? await Promise.all([
+    db.video.count({ where: { creatorAddress: session.aleoAddress } }),
+    db.playbackSession.count({
+      where: {
+        video: { creatorAddress: session.aleoAddress },
+        status: "ACTIVE",
+        expiresAt: { gt: new Date() },
+      },
+    }),
+  ]) : [0, 0];
+
+  const videos = session ? await db.video.findMany({
+    where: { creatorAddress: session.aleoAddress },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  }) : [];
 
   const statCards = [
-    { label: "Total videos",   value: stats?.totalVideos   ?? 0 },
-    { label: "Total views",    value: stats?.totalViews    ?? 0 },
-    { label: "Revenue (USD)",  value: `$${(stats?.totalRevenue ?? 0).toFixed(2)}` },
-    { label: "Active viewers", value: stats?.activeViewers ?? 0 },
+    { label: "Total videos",   value: totalVideos },
+    { label: "Active viewers", value: activeSessions },
+    { label: "Revenue (USD)",  value: "$0.00" },
+    { label: "Total views",    value: 0 },
   ];
 
   return (
@@ -34,7 +36,6 @@ export default async function CreatorDashboard() {
         <Link href="/upload" className="btn-primary">+ Upload video</Link>
       </div>
 
-      {/* Stats */}
       <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((s) => (
           <div key={s.label} className="card">
@@ -44,7 +45,6 @@ export default async function CreatorDashboard() {
         ))}
       </div>
 
-      {/* Videos table */}
       <h2 className="mb-4 text-lg font-semibold text-white">Your videos</h2>
       {videos.length === 0 ? (
         <div className="card py-12 text-center text-gray-500">
@@ -55,7 +55,7 @@ export default async function CreatorDashboard() {
           <table className="w-full text-sm">
             <thead className="border-b border-gray-800 bg-surface-800 text-gray-400">
               <tr>
-                {["Title", "Access type", "Price", "Status", "Created"].map((h) => (
+                {["Content ID", "Status", "Created"].map((h) => (
                   <th key={h} className="px-4 py-3 text-left font-medium">{h}</th>
                 ))}
               </tr>
@@ -63,11 +63,7 @@ export default async function CreatorDashboard() {
             <tbody>
               {videos.map((v) => (
                 <tr key={v.contentId} className="border-b border-gray-800 hover:bg-surface-800">
-                  <td className="px-4 py-3 text-white">
-                    <Link href={`/video/${v.contentId}`} className="hover:text-brand-400">{v.title}</Link>
-                  </td>
-                  <td className="px-4 py-3 text-gray-400">{v.accessType}</td>
-                  <td className="px-4 py-3 text-gray-400">${v.price.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-white font-mono text-xs">{v.contentId.slice(0, 16)}…</td>
                   <td className="px-4 py-3">
                     <span className={v.status === "PUBLISHED" ? "badge-green" : "badge-yellow"}>
                       {v.status}
