@@ -13,6 +13,8 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@demox-labs/aleo-wallet-adapter-base": "^0.0.23",
+    "@demox-labs/aleo-wallet-adapter-leo": "^0.0.25",
     "@libsql/client": "^0.8.0",
     "@pinata/sdk": "^2.1.0",
     "@prisma/adapter-libsql": "5.22.0",
