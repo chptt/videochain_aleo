@@ -13,7 +13,7 @@ import type {
   CreatorStats,
 } from "@/types";
 
-const BASE = process.env.NEXT_PUBLIC_APP_URL ?? "";
+const BASE = typeof window !== "undefined" ? "" : (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000");
 
 async function request<T>(
   path: string,

@@ -17,7 +17,9 @@ export function Navbar() {
   const router = useRouter();
 
   async function handleLogout() {
-    await api.auth.logout();
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch { /* ignore */ }
     router.push("/auth");
     router.refresh();
   }
