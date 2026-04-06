@@ -6,10 +6,10 @@ import { AleoConnect } from "./AleoConnect";
 import { api } from "@/app/lib/api";
 
 const NAV = [
-  { href: "/browse",    label: "Browse" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/my-access", label: "My Access" },
-  { href: "/upload",    label: "Upload" },
+  { href: "/browse",           label: "Browse" },
+  { href: "/dashboard",        label: "Creator" },
+  { href: "/viewer-dashboard", label: "My Videos" },
+  { href: "/upload",           label: "Upload" },
 ];
 
 export function Navbar() {
