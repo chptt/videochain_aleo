@@ -5,24 +5,26 @@
  * Flow:
  *  1. Generate AES-256-GCM key in browser (Web Crypto)
  *  2. Encrypt the video bytes
- *  3. POST encrypted blob to /api/upload/walrus (server-side proxy — no CORS)
+ *  3. Upload encrypted blob in 3.5 MB chunks to /api/upload/walrus
+ *     (chunks stay under Vercel's 4.5 MB body limit)
  *  4. Export the raw key as hex — server wraps it before storing
  */
 
+const CHUNK_SIZE = 3.5 * 1024 * 1024; // 3.5 MB — safely under Vercel's 4.5 MB limit
+
 export interface ClientEncryptResult {
   encryptedBlob: Blob;
-  keyHex: string;       // raw AES key, hex-encoded — send to server for wrapping
+  keyHex: string;
   ivHex: string;
-  tagHex: string;       // GCM auth tag (last 16 bytes of ciphertext from SubtleCrypto)
+  tagHex: string;
   contentHashHex: string;
 }
 
 export interface WalrusUploadResult {
-  uri: string;          // walrus://<blobId>
+  uri: string;
   blobId: string;
 }
 
-/** SHA-256 of raw bytes, returned as hex */
 async function sha256Hex(data: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", data);
   return Array.from(new Uint8Array(digest))
@@ -30,14 +32,13 @@ async function sha256Hex(data: ArrayBuffer): Promise<string> {
     .join("");
 }
 
-/** Encrypt video bytes in-browser using AES-256-GCM */
 export async function encryptVideo(file: File): Promise<ClientEncryptResult> {
   const raw = await file.arrayBuffer();
   const contentHashHex = await sha256Hex(raw);
 
   const key = await crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
-    true,   // extractable
+    true,
     ["encrypt", "decrypt"]
   );
 
@@ -48,7 +49,6 @@ export async function encryptVideo(file: File): Promise<ClientEncryptResult> {
     raw
   );
 
-  // SubtleCrypto appends the 16-byte tag at the end of ciphertext
   const ctBytes = new Uint8Array(ciphertext);
   const tagHex = Array.from(ctBytes.slice(-16))
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -71,33 +71,50 @@ export async function encryptVideo(file: File): Promise<ClientEncryptResult> {
   };
 }
 
-/** Upload a blob via the server-side Walrus proxy (avoids CORS), returns walrus://<blobId> */
-export async function uploadToWalrus(blob: Blob, onProgress?: (pct: number) => void): Promise<WalrusUploadResult> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/upload/walrus");
-    xhr.setRequestHeader("Content-Type", "application/octet-stream");
+/** Upload blob in chunks to the server-side Walrus proxy */
+export async function uploadToWalrus(
+  blob: Blob,
+  onProgress?: (pct: number) => void
+): Promise<WalrusUploadResult> {
+  const totalSize   = blob.size;
+  const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
+  const uploadId    = crypto.randomUUID();
 
-    if (onProgress) {
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-      };
+  let lastResponse: { success: boolean; uri?: string; blobId?: string; error?: string } | null = null;
+
+  for (let i = 0; i < totalChunks; i++) {
+    const start = i * CHUNK_SIZE;
+    const end   = Math.min(start + CHUNK_SIZE, totalSize);
+    const chunk = blob.slice(start, end);
+
+    const res = await fetch("/api/upload/walrus", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/octet-stream",
+        "x-upload-id":    uploadId,
+        "x-chunk-index":  String(i),
+        "x-total-chunks": String(totalChunks),
+      },
+      body: chunk,
+    });
+
+    if (!res.ok) {
+      throw new Error(`Chunk ${i + 1}/${totalChunks} failed: ${res.status} ${res.statusText}`);
     }
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          if (!data.success) return reject(new Error(data.error ?? "Proxy upload failed"));
-          resolve({ uri: data.uri, blobId: data.blobId });
-        } catch {
-          reject(new Error("Invalid proxy response JSON"));
-        }
-      } else {
-        reject(new Error(`Upload proxy failed: ${xhr.status} ${xhr.statusText}`));
-      }
-    };
-    xhr.onerror = () => reject(new Error("Upload network error"));
-    xhr.send(blob);
-  });
+    lastResponse = await res.json();
+    if (lastResponse && !lastResponse.success) {
+      throw new Error(lastResponse.error ?? "Upload failed");
+    }
+
+    if (onProgress) {
+      onProgress(Math.round(((i + 1) / totalChunks) * 100));
+    }
+  }
+
+  if (!lastResponse?.uri || !lastResponse?.blobId) {
+    throw new Error("Upload completed but no URI returned");
+  }
+
+  return { uri: lastResponse.uri, blobId: lastResponse.blobId };
 }
