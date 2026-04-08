@@ -8,14 +8,7 @@ import { env } from "@/services/env";
 import { v4 as uuidv4 } from "uuid";
 
 export const runtime = "nodejs";
-
-export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: "500mb",
-    },
-  },
-};
+export const maxDuration = 300;
 
 export async function POST(req: NextRequest) {
   try {
