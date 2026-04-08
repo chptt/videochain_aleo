@@ -4,7 +4,7 @@
  * Identity = Aleo address (no user accounts).
  */
 
-import { db } from "./db";
+import { getDb } from "./db";
 import { env } from "./env";
 import { logger } from "./logger";
 import { generateNonce, wrapSessionKey, unwrapKey } from "./encryption";
@@ -20,6 +20,7 @@ export async function issuePlaybackSession(params: {
   ipHash?: string;
 }): Promise<PlaybackSession> {
   const { aleoAddress, contentId, ipHash } = params;
+  const db = await getDb();
 
   const video = await db.video.findUnique({ where: { contentId } });
   if (!video) throw new Error("Video not found");
@@ -71,7 +72,7 @@ export async function verifyPlaybackJwt(token: string): Promise<{
   nonce: string;
 }> {
   const { payload } = await jwtVerify(token, JWT_SECRET);
-
+  const db = await getDb();
   const sessionId = payload.sid as string;
   const session   = await db.playbackSession.findUnique({ where: { sessionId } });
 
@@ -90,6 +91,7 @@ export async function verifyPlaybackJwt(token: string): Promise<{
 }
 
 export async function consumeSession(sessionId: string): Promise<void> {
+  const db = await getDb();
   await db.playbackSession.update({
     where: { sessionId },
     data: { status: "CONSUMED", consumedAt: new Date() },

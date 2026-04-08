@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/services/db";
+import { getDb } from "@/services/db";
 import { getSession } from "@/app/lib/auth";
 import { storage } from "@/services/storage";
 import type { Video, VideoMetadata } from "@/types";
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     const mine     = searchParams.get("mine") === "true";
 
     const session = await getSession();
-
+    const db = await getDb();
     const where: { status?: string; creatorAddress?: string } = { status: "PUBLISHED" };
 
     if (mine && session) {

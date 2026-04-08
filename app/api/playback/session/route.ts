@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/app/lib/auth";
 import { issuePlaybackSession } from "@/services/playback";
 import { logger } from "@/services/logger";
-import { db } from "@/services/db";
+import { getDb } from "@/services/db";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = schema.parse(await req.json());
-
+    const db = await getDb();
     // Look up the video
     const video = await db.video.findUnique({ where: { contentId: body.contentId } });
     if (!video) {

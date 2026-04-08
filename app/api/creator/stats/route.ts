@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/services/db";
+import { getDb } from "@/services/db";
 import { getSession } from "@/app/lib/auth";
 
 export async function GET() {
@@ -8,7 +8,7 @@ export async function GET() {
     if (!session) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
-
+    const db = await getDb();
     const [totalVideos, activeSessions] = await Promise.all([
       db.video.count({ where: { creatorAddress: session.aleoAddress } }),
       db.playbackSession.count({

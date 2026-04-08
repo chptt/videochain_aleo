@@ -1,6 +1,6 @@
 
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/services/db";
+import { getDb } from "@/services/db";
 import { storage } from "@/services/storage";
 import type { VideoMetadata } from "@/types";
 
@@ -15,6 +15,7 @@ export async function GET(
 ) {
   try {
     const { contentId } = await params;
+    const db = await getDb();
     const video = await db.video.findUnique({
       where: { contentId },
       select: {

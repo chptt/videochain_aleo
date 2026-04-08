@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { db } from "@/services/db";
+import { getDb } from "@/services/db";
 import { getSession } from "@/app/lib/auth";
 
 export default async function CreatorDashboard() {
   const session = await getSession();
-
+  const db = await getDb();
   const [totalVideos, activeSessions] = session ? await Promise.all([
     db.video.count({ where: { creatorAddress: session.aleoAddress } }),
     db.playbackSession.count({

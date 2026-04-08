@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/services/db";
+import { getDb } from "@/services/db";
 import { getSession } from "@/app/lib/auth";
 import { buildGrantAccessInputs } from "@/services/aleo";
 import { logger } from "@/services/logger";
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = schema.parse(await req.json());
-
+    const db = await getDb();
     const video = await db.video.findUnique({ where: { contentId: body.contentId } });
     if (!video || video.status !== "PUBLISHED") {
       return NextResponse.json({ success: false, error: "Video not found" }, { status: 404 });

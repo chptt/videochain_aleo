@@ -1,7 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPlaybackJwt, consumeSession } from "@/services/playback";
-import { db } from "@/services/db";
+import { getDb } from "@/services/db";
 import { unwrapKey, decrypt } from "@/services/encryption";
 import { storage } from "@/services/storage";
 import { logger } from "@/services/logger";
@@ -34,6 +34,7 @@ export async function GET(
     }
 
     // Fetch video record (includes encrypted key ref)
+    const db = await getDb();
     const video = await db.video.findUnique({ where: { contentId } });
     if (!video) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });

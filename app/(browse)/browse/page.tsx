@@ -1,7 +1,7 @@
 import { VideoGrid } from "@/app/components/VideoGrid";
 import { VideoGridSkeleton } from "@/app/components/LoadingSkeleton";
 import { Suspense } from "react";
-import { db } from "@/services/db";
+import { getDb } from "@/services/db";
 
 const CATEGORIES = ["All", "Tutorial", "Music", "Film", "Gaming", "Education", "Other"];
 
@@ -12,7 +12,7 @@ export default async function BrowsePage({
 }) {
   const { search, category } = await searchParams;
 
-  // Query DB directly — no HTTP self-call needed on server
+  const db = await getDb();
   const videos = await db.video.findMany({
     where: {
       status: "PUBLISHED",
