@@ -1,19 +1,13 @@
 "use client";
 
 /**
- * Client-side encrypt-then-upload to Walrus.
- * Keeps large video bytes out of the Next.js serverless function entirely.
- *
+ * Client-side encrypt-then-upload.
  * Flow:
  *  1. Generate AES-256-GCM key in browser (Web Crypto)
  *  2. Encrypt the video bytes
- *  3. Upload encrypted blob directly to Walrus publisher
- *  4. Export the raw key as hex — caller wraps it server-side
+ *  3. POST encrypted blob to /api/upload/walrus (server-side proxy — no CORS)
+ *  4. Export the raw key as hex — server wraps it before storing
  */
-
-const WALRUS_PUBLISHER =
-  process.env.NEXT_PUBLIC_WALRUS_PUBLISHER_URL ??
-  "https://publisher.walrus-testnet.walrus.space";
 
 export interface ClientEncryptResult {
   encryptedBlob: Blob;
@@ -77,11 +71,11 @@ export async function encryptVideo(file: File): Promise<ClientEncryptResult> {
   };
 }
 
-/** Upload a blob directly to Walrus, returns walrus://<blobId> */
+/** Upload a blob via the server-side Walrus proxy (avoids CORS), returns walrus://<blobId> */
 export async function uploadToWalrus(blob: Blob, onProgress?: (pct: number) => void): Promise<WalrusUploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("PUT", `${WALRUS_PUBLISHER}/v1/store`);
+    xhr.open("POST", "/api/upload/walrus");
     xhr.setRequestHeader("Content-Type", "application/octet-stream");
 
     if (onProgress) {
@@ -94,19 +88,16 @@ export async function uploadToWalrus(blob: Blob, onProgress?: (pct: number) => v
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           const data = JSON.parse(xhr.responseText);
-          const blobId: string =
-            data.newlyCreated?.blobObject?.blobId ??
-            data.alreadyCertified?.blobId;
-          if (!blobId) return reject(new Error("Walrus: no blobId in response"));
-          resolve({ uri: `walrus://${blobId}`, blobId });
+          if (!data.success) return reject(new Error(data.error ?? "Proxy upload failed"));
+          resolve({ uri: data.uri, blobId: data.blobId });
         } catch {
-          reject(new Error("Walrus: invalid response JSON"));
+          reject(new Error("Invalid proxy response JSON"));
         }
       } else {
-        reject(new Error(`Walrus upload failed: ${xhr.status} ${xhr.statusText}`));
+        reject(new Error(`Upload proxy failed: ${xhr.status} ${xhr.statusText}`));
       }
     };
-    xhr.onerror = () => reject(new Error("Walrus upload network error"));
+    xhr.onerror = () => reject(new Error("Upload network error"));
     xhr.send(blob);
   });
 }
