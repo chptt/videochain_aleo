@@ -9,6 +9,14 @@ import { v4 as uuidv4 } from "uuid";
 
 export const runtime = "nodejs";
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "500mb",
+    },
+  },
+};
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getSession();
