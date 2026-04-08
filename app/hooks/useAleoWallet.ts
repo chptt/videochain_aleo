@@ -15,7 +15,22 @@ export interface AleoWalletState {
   connecting: boolean;
   error: string | null;
   installed: boolean;
-  checking: boolean; // true while waiting for extension to load
+  checking: boolean;
+}
+
+/** Creates a server session for the given address. Silent — never throws. */
+async function ensureSession(address: string, network: string): Promise<void> {
+  try {
+    const res = await fetch("/api/auth/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ aleoAddress: address, network }),
+    });
+    if (!res.ok) console.warn("Session creation failed", res.status);
+  } catch (err) {
+    console.warn("Session creation error", err);
+  }
 }
 
 export function useAleoWallet() {
@@ -29,23 +44,23 @@ export function useAleoWallet() {
     checking: true,
   });
 
-  // Wait for Leo Wallet extension to inject window.leo
+  // On mount: check if wallet is already connected and ensure a session exists
   useEffect(() => {
-    waitForLeoWallet(2000).then((installed) => {
+    waitForLeoWallet(2000).then(async (installed) => {
       setState((s) => ({ ...s, installed, checking: false }));
 
       if (installed) {
-        getAleoWalletState().then((walletState) => {
-          if (walletState.connected) {
-            setState((s) => ({ ...s, ...walletState, installed: true, checking: false }));
-          }
-        });
+        const walletState = await getAleoWalletState();
+        if (walletState.connected && walletState.address) {
+          setState((s) => ({ ...s, ...walletState, installed: true, checking: false }));
+          // Ensure a valid server session exists for the restored wallet state
+          await ensureSession(walletState.address, walletState.network ?? "testnet");
+        }
       }
     });
   }, []);
 
   const connect = useCallback(async () => {
-    // Wait up to 2s for extension in case user just installed it
     const installed = await waitForLeoWallet(2000);
 
     if (!installed) {
@@ -61,6 +76,8 @@ export function useAleoWallet() {
     try {
       const result = await connectAleoWallet();
       setState({ ...result, connecting: false, error: null, installed: true, checking: false });
+      // Create server session immediately after connecting
+      await ensureSession(result.address!, result.network ?? "testnet");
     } catch (err) {
       setState((s) => ({
         ...s,
@@ -72,6 +89,10 @@ export function useAleoWallet() {
 
   const disconnect = useCallback(async () => {
     await disconnectAleoWallet();
+    // Clear server session
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+    } catch { /* ignore */ }
     setState((s) => ({ ...s, connected: false, address: null, network: null, error: null }));
   }, []);
 

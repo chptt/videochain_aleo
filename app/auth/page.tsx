@@ -3,47 +3,17 @@
 import { useAleoWallet } from "@/app/hooks/useAleoWallet";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { signMessage } from "@/app/lib/aleo-adapter";
 
 export default function AuthPage() {
   const { connected, address, network, connecting, error, installed, checking, connect } = useAleoWallet();
   const router = useRouter();
 
-  // Once connected, sign a message and create a session
+  // Once connected, redirect to browse — session is handled by useAleoWallet hook
   useEffect(() => {
-    if (!connected || !address) return;
-
-    async function createSession() {
-      try {
-        // Sign a challenge so the backend knows you own this address
-        const message = `VideoChain login: ${address} at ${Date.now()}`;
-        let signature: string | undefined;
-
-        try {
-          signature = await signMessage(message);
-        } catch {
-          // In dev mode, signature is optional
-          console.warn("Signature skipped — dev mode");
-        }
-
-        const res = await fetch("/api/auth/connect", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ aleoAddress: address, network, signature }),
-        });
-
-        const json = await res.json();
-        if (json.success) {
-          router.push("/browse");
-        }
-      } catch (err) {
-        console.error("Session creation failed", err);
-      }
+    if (connected && address) {
+      router.push("/browse");
     }
-
-    createSession();
-  }, [connected, address, network, router]);
+  }, [connected, address, router]);
 
   return (
     <div className="flex min-h-[80vh] items-center justify-center px-6">
