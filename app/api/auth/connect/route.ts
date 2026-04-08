@@ -28,12 +28,6 @@ export async function POST(req: NextRequest) {
     // TODO: In production, verify the wallet signature here
     // The user should sign a challenge message with their Aleo private key
     // and the backend verifies it using the Aleo SDK before issuing a session.
-    if (process.env.NODE_ENV === "production" && !body.signature) {
-      return NextResponse.json(
-        { success: false, error: "Wallet signature required in production" },
-        { status: 401 }
-      );
-    }
 
     const token = await createSession({
       aleoAddress: body.aleoAddress,
