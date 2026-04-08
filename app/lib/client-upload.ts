@@ -95,6 +95,7 @@ export async function uploadToWalrus(
         "x-chunk-index":  String(i),
         "x-total-chunks": String(totalChunks),
       },
+      credentials: "include",
       body: chunk,
     });
 
