@@ -39,12 +39,23 @@ export const api = {
   },
 
   upload: {
-    create: (formData: FormData) =>
-      fetch(`${BASE}/api/upload`, {
+    register: (payload: {
+      encryptedVideoUri: string;
+      keyHex: string;
+      ivHex: string;
+      contentHashHex: string;
+      title: string;
+      description?: string;
+      category?: string;
+      price: number;
+      accessType: string;
+      maxViews?: number;
+      rentalHours?: number;
+    }) =>
+      request<Video>("/api/upload", {
         method: "POST",
-        body: formData,
-        credentials: "include",
-      }).then((r) => r.json() as Promise<ApiResponse<Video>>),
+        body: JSON.stringify(payload),
+      }),
   },
 
   purchase: {
