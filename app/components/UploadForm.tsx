@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useToastContext } from "./Toast";
-import { encryptVideo, uploadToWalrus } from "@/app/lib/client-upload";
+import { encryptVideo } from "@/app/lib/client-upload";
 import type { AccessType } from "@/types";
 
 const ACCESS_TYPES: { value: AccessType; label: string }[] = [
@@ -38,14 +38,21 @@ export function UploadForm() {
       // 1. Encrypt in browser
       setStage("encrypting");
       setProgress(5);
-      const { encryptedBlob, keyHex, ivHex, contentHashHex } = await encryptVideo(file);
+      const { encryptedBlob, keyHex, ivHex, tagHex, contentHashHex } = await encryptVideo(file);
 
-      // 2. Upload encrypted blob directly to Walrus (bypasses Vercel size limit)
+      // 2. Convert encrypted blob to structured data URI (stored in DB)
       setStage("uploading");
       setProgress(10);
-      const { uri: encryptedVideoUri } = await uploadToWalrus(encryptedBlob, (pct) => {
-        setProgress(10 + Math.round(pct * 0.8)); // 10–90%
-      });
+      // Store as structured JSON payload matching server-side EncryptedPayload format
+      const encryptedPayload = {
+        iv: ivHex,
+        tag: tagHex,
+        // ciphertext is the blob minus the last 16 bytes (tag)
+        ciphertext: await encryptedBlob.slice(0, encryptedBlob.size - 16).arrayBuffer()
+          .then(buf => Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,"0")).join("")),
+      };
+      const encryptedVideoUri = `data:application/json;base64,${btoa(JSON.stringify(encryptedPayload))}`;
+      setProgress(90);
 
       // 3. Register with backend (tiny JSON payload — no video bytes)
       setStage("saving");
