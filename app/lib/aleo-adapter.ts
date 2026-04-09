@@ -1,6 +1,4 @@
-"use client";
-
-// No package imports — avoids ChunkLoadError from Node.js-only code in adapter packages
+﻿"use client";
 
 export interface AleoWalletState {
   connected: boolean;
@@ -8,10 +6,8 @@ export interface AleoWalletState {
   network: string | null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getLeoWallet(): any {
   if (typeof window === "undefined") return undefined;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const w = window as any;
   return w.leoWallet ?? w.leo ?? w.aleo ?? undefined;
 }
@@ -36,51 +32,40 @@ export async function connectAleoWallet(): Promise<AleoWalletState> {
   const leo = getLeoWallet();
   if (!leo) throw new Error("Leo Wallet not found. Install from https://leo.app");
 
-  // Patch undefined properties that cause toString crash
-  try { if (!leo.appName) leo.appName = "VideoChain"; } catch { /* readonly */ }
-  try { if (!leo.network) leo.network = "testnetbeta"; } catch { /* readonly */ }
+  const networks = ["Testnet", "Mainnet", "Devnet"];
+  let lastErr: unknown;
 
-  // Try all network names
-  for (const net of ["testnetbeta", "testnet", "mainnetbeta"]) {
-    try { await leo.connect(net); break; } catch { /* try next */ }
-  }
-
-  // Get address
-  let address: string | null = null;
-  try {
-    if (typeof leo.getAccount === "function") {
-      const acc = await leo.getAccount();
-      address = acc?.address ?? (typeof acc === "string" ? acc : null);
+  for (const network of networks) {
+    try {
+      await leo.connect("NO_DECRYPT", network);
+      const address: string | null =
+        typeof leo.publicKey === "string" && leo.publicKey ? leo.publicKey : null;
+      if (!address) throw new Error("No address after connect");
+      return { connected: true, address, network: "testnet" };
+    } catch (err) {
+      lastErr = err;
     }
-  } catch { /* ignore */ }
-
-  if (!address && leo.publicKey && typeof leo.publicKey === "string") {
-    address = leo.publicKey;
   }
 
-  if (!address) throw new Error("Could not get address. Try refreshing the page.");
-
-  return { connected: true, address, network: "testnetbeta" };
+  throw new Error(lastErr instanceof Error ? lastErr.message : "Could not connect to Leo Wallet");
 }
 
 export async function getAleoWalletState(): Promise<AleoWalletState> {
   const leo = getLeoWallet();
   if (!leo) return { connected: false, address: null, network: null };
   try {
-    let address: string | null = null;
-    if (typeof leo.getAccount === "function") {
-      const acc = await leo.getAccount();
-      address = acc?.address ?? (typeof acc === "string" ? acc : null);
-    }
-    if (!address && leo.publicKey && typeof leo.publicKey === "string") address = leo.publicKey;
-    if (address) return { connected: true, address, network: "testnetbeta" };
-  } catch { /* not connected */ }
+    const address: string | null =
+      typeof leo.publicKey === "string" && leo.publicKey ? leo.publicKey : null;
+    if (address) return { connected: true, address, network: "testnet" };
+  } catch {}
   return { connected: false, address: null, network: null };
 }
 
 export async function disconnectAleoWallet(): Promise<void> {
   const leo = getLeoWallet();
-  if (leo && typeof leo.disconnect === "function") try { await leo.disconnect(); } catch { /* ignore */ }
+  if (leo && typeof leo.disconnect === "function") {
+    try { await leo.disconnect(); } catch {}
+  }
 }
 
 export async function signMessage(message: string): Promise<string> {
@@ -88,8 +73,8 @@ export async function signMessage(message: string): Promise<string> {
   if (!leo) throw new Error("Leo Wallet not connected");
   const encoded = new TextEncoder().encode(message);
   const result = await leo.signMessage(encoded);
-  const sig = result?.signature ?? result;
-  return Buffer.from(sig).toString("hex");
+  const sig: Uint8Array = result?.signature ?? result;
+  return Array.from(sig).map((b) => (b as number).toString(16).padStart(2, "0")).join("");
 }
 
 const PROGRAM_ID = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID ?? "video_entitlement.aleo";
@@ -97,43 +82,14 @@ const PROGRAM_ID = process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID ?? "video_entitlement
 export async function executeGrantAccess(inputs: string[]): Promise<{ txId: string }> {
   const leo = getLeoWallet();
   if (!leo) throw new Error("Leo Wallet not connected");
-  const acc = await leo.getAccount?.();
-  const txId = await leo.requestTransaction({
-    address: acc?.address ?? "", chainId: "testnetbeta",
+  const result = await leo.requestTransaction({
+    address: leo.publicKey ?? "",
+    chainId: "testnet",
     transitions: [{ program: PROGRAM_ID, functionName: "grant_access", inputs }],
-    fee: 1000, feePrivate: false,
+    fee: 1000,
+    feePrivate: false,
   });
-  return { txId };
-}
-
-export async function executeValidateAccess(params: {
-  record: string; contentId: string; currentTs: number;
-}): Promise<{ txId: string }> {
-  const leo = getLeoWallet();
-  if (!leo) throw new Error("Leo Wallet not connected");
-  const acc = await leo.getAccount?.();
-  const txId = await leo.requestTransaction({
-    address: acc?.address ?? "", chainId: "testnetbeta",
-    transitions: [{ program: PROGRAM_ID, functionName: "validate_access",
-      inputs: [params.record, params.contentId, `${params.currentTs}u64`] }],
-    fee: 1000, feePrivate: false,
-  });
-  return { txId };
-}
-
-export async function executeConsumeView(params: {
-  record: string; contentId: string; currentTs: number; newNonce: string;
-}): Promise<{ txId: string }> {
-  const leo = getLeoWallet();
-  if (!leo) throw new Error("Leo Wallet not connected");
-  const acc = await leo.getAccount?.();
-  const txId = await leo.requestTransaction({
-    address: acc?.address ?? "", chainId: "testnetbeta",
-    transitions: [{ program: PROGRAM_ID, functionName: "consume_view",
-      inputs: [params.record, params.contentId, `${params.currentTs}u64`, params.newNonce] }],
-    fee: 1000, feePrivate: false,
-  });
-  return { txId };
+  return { txId: result?.transactionId ?? result };
 }
 
 export function contentIdToField(contentId: string): string {
