@@ -105,7 +105,7 @@ export async function uploadToWalrus(
 
     lastResponse = await res.json();
     if (lastResponse && !lastResponse.success) {
-      throw new Error(lastResponse.error ?? "Upload failed");
+      throw new Error(lastResponse.error ?? `Chunk ${i + 1} failed`);
     }
 
     if (onProgress) {
@@ -114,7 +114,8 @@ export async function uploadToWalrus(
   }
 
   if (!lastResponse?.uri || !lastResponse?.blobId) {
-    throw new Error("Upload completed but no URI returned");
+    const detail = lastResponse ? JSON.stringify(lastResponse) : "no response";
+    throw new Error(`Upload completed but no URI returned. Server said: ${detail}`);
   }
 
   return { uri: lastResponse.uri, blobId: lastResponse.blobId };

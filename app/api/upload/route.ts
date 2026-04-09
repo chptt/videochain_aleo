@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/services/db";
 import { getSession } from "@/app/lib/auth";
 import { wrapKey } from "@/services/encryption";
-import { storage } from "@/services/storage";
 import { logger } from "@/services/logger";
 import { env } from "@/services/env";
 import { v4 as uuidv4 } from "uuid";
@@ -60,7 +59,7 @@ export async function POST(req: NextRequest) {
 
     const contentId = uuidv4();
 
-    // Build and store public metadata JSON
+    // Store metadata as inline data URI — no external storage needed
     const metadata = {
       contentId,
       creatorAddress: session.aleoAddress,
@@ -74,12 +73,7 @@ export async function POST(req: NextRequest) {
       createdAt: new Date().toISOString(),
     };
 
-    const metadataBuffer = Buffer.from(JSON.stringify(metadata));
-    const { uri: metadataUri } = await storage.upload(
-      metadataBuffer,
-      `${contentId}-meta.json`,
-      "application/json"
-    );
+    const metadataUri = `data:application/json;base64,${Buffer.from(JSON.stringify(metadata)).toString("base64")}`;
 
     const db = await getDb();
     const video = await db.video.create({
@@ -101,7 +95,6 @@ export async function POST(req: NextRequest) {
       data: {
         contentId: video.contentId,
         title,
-        metadataUri: storage.getUrl(metadataUri),
       },
     });
   } catch (err) {

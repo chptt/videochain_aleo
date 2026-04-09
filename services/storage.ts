@@ -125,9 +125,22 @@ const provider = getProvider();
 export const storage = {
   upload: (data: Buffer, filename: string, mimeType: string) =>
     provider.upload(data, filename, mimeType),
-  getUrl: (uri: string) => provider.getUrl(uri),
-  read: (uri: string) => provider.read(uri),
+  getUrl: (uri: string) => {
+    if (uri.startsWith("data:")) return uri;
+    return provider.getUrl(uri);
+  },
+  read: (uri: string) => {
+    if (uri.startsWith("data:")) {
+      const base64 = uri.split(",")[1] ?? "";
+      return Promise.resolve(Buffer.from(base64, "base64"));
+    }
+    return provider.read(uri);
+  },
   readJson: async <T>(uri: string): Promise<T> => {
+    if (uri.startsWith("data:")) {
+      const base64 = uri.split(",")[1] ?? "";
+      return JSON.parse(Buffer.from(base64, "base64").toString("utf8")) as T;
+    }
     const buffer = await provider.read(uri);
     return JSON.parse(buffer.toString("utf8")) as T;
   },
