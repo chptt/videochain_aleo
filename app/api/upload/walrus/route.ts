@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function forwardToWalrus(body: Buffer): Promise<NextResponse> {
-  const res = await fetch(`${WALRUS_PUBLISHER}/v1/store`, {
+  const res = await fetch(`${WALRUS_PUBLISHER}/v1/blobs`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/octet-stream",

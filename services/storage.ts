@@ -66,7 +66,7 @@ class PinataProvider implements StorageProvider {
 class WalrusProvider implements StorageProvider {
   async upload(data: Buffer, _filename: string, _mimeType: string): Promise<StorageUploadResult> {
     const axios = (await import("axios")).default;
-    const res = await axios.put(`${env.WALRUS_PUBLISHER_URL}/v1/store`, data, {
+    const res = await axios.put(`${env.WALRUS_PUBLISHER_URL}/v1/blobs`, data, {
       headers: { "Content-Type": "application/octet-stream" },
     });
     const blobId: string = res.data.newlyCreated?.blobObject?.blobId ?? res.data.alreadyCertified?.blobId;
@@ -75,7 +75,7 @@ class WalrusProvider implements StorageProvider {
 
   getUrl(uri: string): string {
     const blobId = uri.replace("walrus://", "");
-    return `${env.WALRUS_AGGREGATOR_URL}/v1/${blobId}`;
+    return `${env.WALRUS_AGGREGATOR_URL}/v1/blobs/${blobId}`;
   }
 
   async read(uri: string): Promise<Buffer> {
