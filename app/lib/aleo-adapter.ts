@@ -32,7 +32,7 @@ export async function connectAleoWallet(): Promise<AleoWalletState> {
   const leo = getLeoWallet();
   if (!leo) throw new Error("Leo Wallet not found. Install from https://leo.app");
 
-  const networks = ["Testnet", "Mainnet", "Devnet"];
+  const networks = ["testnetbeta", "testnet3", "mainnetbeta"];
   let lastErr: unknown;
 
   for (const network of networks) {
